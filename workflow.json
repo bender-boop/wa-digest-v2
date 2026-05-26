@@ -6,13 +6,16 @@
       "parameters": {
         "rule": {
           "interval": [
-            { "field": "cronExpression", "expression": "30 8 * * *" }
+            {
+              "field": "cronExpression",
+              "expression": "30 2 * * *"
+            }
           ]
         },
-        "options": { "timezone": "Europe/Sarajevo" }
+        "options": {}
       },
       "id": "trigger-cron",
-      "name": "Trigger: Cron 08:30 CEST",
+      "name": "Trigger: Cron 08:30 CEST (container UTC-4)",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.1,
       "position": [240, 200]
@@ -31,7 +34,10 @@
       "position": [240, 400]
     },
     {
-      "parameters": { "mode": "passThrough", "options": {} },
+      "parameters": {
+        "mode": "passThrough",
+        "options": {}
+      },
       "id": "merge-triggers",
       "name": "Merge Triggers",
       "type": "n8n-nodes-base.merge",
@@ -42,8 +48,18 @@
       "parameters": {
         "assignments": {
           "assignments": [
-            { "id": "date-iso", "name": "date_iso", "value": "={{ $now.setZone('Europe/Sarajevo').toFormat('yyyy-MM-dd') }}", "type": "string" },
-            { "id": "drive-folder-id", "name": "drive_folder_id", "value": "18zK9AWntj57Jp1fr0TLr78jCZGMHx-AO", "type": "string" }
+            {
+              "id": "date-iso",
+              "name": "date_iso",
+              "value": "={{ $now.setZone('Europe/Sarajevo').toFormat('yyyy-MM-dd') }}",
+              "type": "string"
+            },
+            {
+              "id": "drive-folder-id",
+              "name": "drive_folder_id",
+              "value": "18zK9AWntj57Jp1fr0TLr78jCZGMHx-AO",
+              "type": "string"
+            }
           ]
         },
         "options": {}
@@ -66,22 +82,35 @@
       "typeVersion": 3,
       "position": [900, 300],
       "credentials": {
-        "googleApi": { "id": "m4byl5nfbNY3sE95", "name": "Google SA - n8n-whatsapp-uploader" }
+        "googleApi": {
+          "id": "m4byl5nfbNY3sE95",
+          "name": "Google SA - n8n-whatsapp-uploader"
+        }
       }
     },
     {
-      "parameters": { "operation": "download", "fileId": "={{ $json.id }}", "options": {} },
+      "parameters": {
+        "operation": "download",
+        "fileId": "={{ $json.id }}",
+        "options": {}
+      },
       "id": "drive-download-messages-json",
       "name": "Drive: download messages_<date>.json",
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
       "position": [1120, 300],
       "credentials": {
-        "googleApi": { "id": "m4byl5nfbNY3sE95", "name": "Google SA - n8n-whatsapp-uploader" }
+        "googleApi": {
+          "id": "m4byl5nfbNY3sE95",
+          "name": "Google SA - n8n-whatsapp-uploader"
+        }
       }
     },
     {
-      "parameters": { "operation": "fromJson", "options": {} },
+      "parameters": {
+        "operation": "fromJson",
+        "options": {}
+      },
       "id": "parse-messages-json",
       "name": "Parse JSON → items",
       "type": "n8n-nodes-base.extractFromFile",
@@ -89,7 +118,10 @@
       "position": [1340, 300]
     },
     {
-      "parameters": { "fieldToSplitOut": "messages", "options": {} },
+      "parameters": {
+        "fieldToSplitOut": "messages",
+        "options": {}
+      },
       "id": "split-messages",
       "name": "Split: one item per message",
       "type": "n8n-nodes-base.itemLists",
@@ -130,7 +162,9 @@
       "position": [2020, 140]
     },
     {
-      "parameters": { "command": "=bash scripts/extract_keyframes.sh \"{{ $json.media_file }}\" 0.5 10" },
+      "parameters": {
+        "command": "=bash scripts/extract_keyframes.sh \"{{ $json.media_file }}\" 0.5 10"
+      },
       "id": "ffmpeg-keyframes",
       "name": "STAGE 1: ffmpeg → 10 keyframes @0.5fps",
       "type": "n8n-nodes-base.executeCommand",
@@ -154,7 +188,9 @@
       "position": [2240, 320]
     },
     {
-      "parameters": { "command": "=whisper-cpp -m models/ggml-medium.bin -l auto -of json \"{{ $json.media_file }}\"" },
+      "parameters": {
+        "command": "=whisper-cpp -m models/ggml-medium.bin -l auto -of json \"{{ $json.media_file }}\""
+      },
       "id": "whisper-audio",
       "name": "STAGE 1: whisper.cpp audio transcript",
       "type": "n8n-nodes-base.executeCommand",
@@ -163,7 +199,10 @@
       "notes": "Auto-detects language. Native transcript for BS/HR/SL/EN."
     },
     {
-      "parameters": { "mode": "passThrough", "options": {} },
+      "parameters": {
+        "mode": "passThrough",
+        "options": {}
+      },
       "id": "merge-enriched",
       "name": "Merge: enriched messages",
       "type": "n8n-nodes-base.merge",
@@ -189,7 +228,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT issue_id, title, state, project_id, 1 - (embedding <=> $1::vector) AS cosine FROM linear_index WHERE 1 - (embedding <=> $1::vector) >= 0.75 ORDER BY embedding <=> $1::vector LIMIT 10",
-        "additionalFields": { "queryReplacement": "={{ JSON.stringify($json.embedding) }}" }
+        "additionalFields": {
+          "queryReplacement": "={{ JSON.stringify($json.embedding) }}"
+        }
       },
       "id": "pgvector-linear",
       "name": "STAGE 2: pgvector → linear_index",
@@ -201,7 +242,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT project_id, name, state, target_date, 1 - (embedding <=> $1::vector) AS cosine FROM linear_projects_index WHERE 1 - (embedding <=> $1::vector) >= 0.70 ORDER BY embedding <=> $1::vector LIMIT 5",
-        "additionalFields": { "queryReplacement": "={{ JSON.stringify($json.embedding) }}" }
+        "additionalFields": {
+          "queryReplacement": "={{ JSON.stringify($json.embedding) }}"
+        }
       },
       "id": "pgvector-projects",
       "name": "STAGE 2: pgvector → linear_projects_index (roadmap)",
@@ -213,7 +256,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT repo, path, docstring, 1 - (embedding <=> $1::vector) AS cosine FROM codebase_index WHERE 1 - (embedding <=> $1::vector) >= 0.70 ORDER BY embedding <=> $1::vector LIMIT 8",
-        "additionalFields": { "queryReplacement": "={{ JSON.stringify($json.embedding) }}" }
+        "additionalFields": {
+          "queryReplacement": "={{ JSON.stringify($json.embedding) }}"
+        }
       },
       "id": "pgvector-codebase",
       "name": "STAGE 2: pgvector → codebase_index",
@@ -225,7 +270,9 @@
       "parameters": {
         "resource": "ticket",
         "operation": "search",
-        "additionalFields": { "query": "=requester:{{ $json.sender_phone }} created>{{ $now.minus({hours: 48}).toISO() }}" }
+        "additionalFields": {
+          "query": "=requester:{{ $json.sender_phone }} created>{{ $now.minus({hours: 48}).toISO() }}"
+        }
       },
       "id": "zendesk-hard-dedupe",
       "name": "STAGE 2: Zendesk hard dedupe (phone ±48h)",
@@ -233,14 +280,19 @@
       "typeVersion": 1,
       "position": [2900, 580],
       "credentials": {
-        "zendeskApi": { "id": "VYVmkciKDc9RACBS", "name": "Zendesk - rollacompany (Bender v2 digest)" }
+        "zendeskApi": {
+          "id": "VYVmkciKDc9RACBS",
+          "name": "Zendesk - rollacompany (Bender v2 digest)"
+        }
       }
     },
     {
       "parameters": {
         "operation": "executeQuery",
         "query": "SELECT ticket_id, subject, status, 1 - (embedding <=> $1::vector) AS cosine FROM zendesk_index WHERE 1 - (embedding <=> $1::vector) >= 0.82 AND created_at > now() - interval '7 days' ORDER BY embedding <=> $1::vector LIMIT 5",
-        "additionalFields": { "queryReplacement": "={{ JSON.stringify($json.embedding) }}" }
+        "additionalFields": {
+          "queryReplacement": "={{ JSON.stringify($json.embedding) }}"
+        }
       },
       "id": "pgvector-zendesk-soft",
       "name": "STAGE 2: Zendesk soft dedupe (cosine ≥0.82, ±7d)",
@@ -249,7 +301,10 @@
       "position": [2900, 720]
     },
     {
-      "parameters": { "mode": "passThrough", "options": {} },
+      "parameters": {
+        "mode": "passThrough",
+        "options": {}
+      },
       "id": "merge-stage2",
       "name": "Merge: verified_matches per message",
       "type": "n8n-nodes-base.merge",
@@ -257,7 +312,10 @@
       "position": [3140, 400]
     },
     {
-      "parameters": { "aggregate": "aggregateAllItemData", "options": {} },
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
       "id": "aggregate-day",
       "name": "Aggregate: full day payload",
       "type": "n8n-nodes-base.itemLists",
@@ -280,7 +338,9 @@
       "position": [3580, 400]
     },
     {
-      "parameters": { "command": "=python3 scripts/validate_digest.py --digest \"$(echo {{ $json.response | base64 }} | base64 -d)\" --matches '{{ JSON.stringify($json.verified_matches) }}' --drop-pct-threshold 0.20" },
+      "parameters": {
+        "command": "=python3 scripts/validate_digest.py --digest \"$(echo {{ $json.response | base64 }} | base64 -d)\" --matches '{{ JSON.stringify($json.verified_matches) }}' --drop-pct-threshold 0.20"
+      },
       "id": "hard-gate-validate",
       "name": "STAGE 3: Hard gate (regex + 20% threshold)",
       "type": "n8n-nodes-base.executeCommand",
@@ -306,12 +366,12 @@
     {
       "parameters": {
         "select": "channel",
-        "channelId": { "__rl": true, "value": "#wa-digest-v2-shadow", "mode": "name" },
-        "text": "={{ $json.cleaned_digest }}",
+        "channelId": { "__rl": true, "value": "C0ANXU0NKFB", "mode": "id" },
+        "text": "=[v2 SHADOW]\n{{ $json.cleaned_digest }}",
         "otherOptions": { "mrkdwn": true }
       },
       "id": "slack-post-top",
-      "name": "OUTPUT: Slack post → #wa-digest-v2-shadow",
+      "name": "OUTPUT: Slack post → #whatsapp-beta-feed [v2 SHADOW]",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.2,
       "position": [4260, 260]
@@ -319,9 +379,12 @@
     {
       "parameters": {
         "select": "channel",
-        "channelId": { "__rl": true, "value": "#wa-digest-v2-shadow", "mode": "name" },
+        "channelId": { "__rl": true, "value": "C0ANXU0NKFB", "mode": "id" },
         "text": "=```\n{{ JSON.stringify($json.long_form, null, 2) }}\n```",
-        "otherOptions": { "mrkdwn": true, "thread_ts": "={{ $json.slack_ts }}" }
+        "otherOptions": {
+          "mrkdwn": true,
+          "thread_ts": "={{ $json.slack_ts }}"
+        }
       },
       "id": "slack-thread-reply",
       "name": "OUTPUT: Slack thread reply (long-form)",
@@ -335,7 +398,13 @@
         "name": "=digest_{{ $('Set Run Context').item.json.date_iso }}.json",
         "binaryData": false,
         "fileContent": "={{ JSON.stringify($json, null, 2) }}",
-        "parents": { "values": [ { "folderId": "TODO_OUTPUTS_BENDER_WHATSAPP_DIGEST_FOLDER_ID" } ] }
+        "parents": {
+          "values": [
+            {
+              "folderId": "1je3Jc6swCegYPIsq4O6QKOPIIg3oYLj-"
+            }
+          ]
+        }
       },
       "id": "drive-write-audit",
       "name": "OUTPUT: Drive write audit JSON",
@@ -343,14 +412,17 @@
       "typeVersion": 3,
       "position": [4700, 260],
       "credentials": {
-        "googleApi": { "id": "m4byl5nfbNY3sE95", "name": "Google SA - n8n-whatsapp-uploader" }
+        "googleApi": {
+          "id": "m4byl5nfbNY3sE95",
+          "name": "Google SA - n8n-whatsapp-uploader"
+        }
       }
     },
     {
       "parameters": {
         "select": "channel",
-        "channelId": { "__rl": true, "value": "#wa-digest-v2-shadow", "mode": "name" },
-        "text": "=⚠️ Digest {{ $('Set Run Context').item.json.date_iso }} failed validation ({{ ($json.dropped_pct * 100).toFixed(1) }}% references unverified).\nFull debug payload in thread.",
+        "channelId": { "__rl": true, "value": "C0ANXU0NKFB", "mode": "id" },
+        "text": "=[v2 SHADOW] ⚠️ Digest {{ $('Set Run Context').item.json.date_iso }} failed validation ({{ ($json.dropped_pct * 100).toFixed(1) }}% references unverified).\nFull debug payload in thread.",
         "otherOptions": { "mrkdwn": true }
       },
       "id": "slack-post-stub-failed",
@@ -365,7 +437,13 @@
         "name": "=digest_{{ $('Set Run Context').item.json.date_iso }}.failed.json",
         "binaryData": false,
         "fileContent": "={{ JSON.stringify($json, null, 2) }}",
-        "parents": { "values": [ { "folderId": "TODO_OUTPUTS_BENDER_WHATSAPP_DIGEST_FOLDER_ID" } ] }
+        "parents": {
+          "values": [
+            {
+              "folderId": "1je3Jc6swCegYPIsq4O6QKOPIIg3oYLj-"
+            }
+          ]
+        }
       },
       "id": "drive-write-failed",
       "name": "FAIL: Drive write .failed.json",
@@ -373,14 +451,19 @@
       "typeVersion": 3,
       "position": [4480, 540],
       "credentials": {
-        "googleApi": { "id": "m4byl5nfbNY3sE95", "name": "Google SA - n8n-whatsapp-uploader" }
+        "googleApi": {
+          "id": "m4byl5nfbNY3sE95",
+          "name": "Google SA - n8n-whatsapp-uploader"
+        }
       }
     },
     {
       "parameters": {
         "operation": "executeQuery",
         "query": "INSERT INTO digest_runs (run_at, trigger, messages_count, hard_gate_pct, posted, failed_reason) VALUES (now(), $1, $2, $3, $4, $5)",
-        "additionalFields": { "queryReplacement": "={{ JSON.stringify([$json.trigger, $json.messages_count, $json.dropped_pct, $json.posted, $json.failed_reason]) }}" }
+        "additionalFields": {
+          "queryReplacement": "={{ JSON.stringify([$json.trigger, $json.messages_count, $json.dropped_pct, $json.posted, $json.failed_reason]) }}"
+        }
       },
       "id": "pg-audit-runs",
       "name": "AUDIT: insert digest_runs row",
@@ -390,7 +473,7 @@
     }
   ],
   "connections": {
-    "Trigger: Cron 08:30 CEST": { "main": [[{ "node": "Merge Triggers", "type": "main", "index": 0 }]] },
+    "Trigger: Cron 08:30 CEST (container UTC-4)": { "main": [[{ "node": "Merge Triggers", "type": "main", "index": 0 }]] },
     "Trigger: Webhook /wa-digest-v2-now": { "main": [[{ "node": "Merge Triggers", "type": "main", "index": 1 }]] },
     "Merge Triggers": { "main": [[{ "node": "Set Run Context", "type": "main", "index": 0 }]] },
     "Set Run Context": { "main": [[{ "node": "Drive: find messages_<date>.json", "type": "main", "index": 0 }]] },
@@ -431,11 +514,11 @@
     "STAGE 3: Hard gate (regex + 20% threshold)": { "main": [[{ "node": "Gate router (pass | fail)", "type": "main", "index": 0 }]] },
     "Gate router (pass | fail)": {
       "main": [
-        [{ "node": "OUTPUT: Slack post → #wa-digest-v2-shadow", "type": "main", "index": 0 }],
+        [{ "node": "OUTPUT: Slack post → #whatsapp-beta-feed [v2 SHADOW]", "type": "main", "index": 0 }],
         [{ "node": "FAIL: Slack stub post", "type": "main", "index": 0 }]
       ]
     },
-    "OUTPUT: Slack post → #wa-digest-v2-shadow": { "main": [[{ "node": "OUTPUT: Slack thread reply (long-form)", "type": "main", "index": 0 }]] },
+    "OUTPUT: Slack post → #whatsapp-beta-feed [v2 SHADOW]": { "main": [[{ "node": "OUTPUT: Slack thread reply (long-form)", "type": "main", "index": 0 }]] },
     "OUTPUT: Slack thread reply (long-form)": { "main": [[{ "node": "OUTPUT: Drive write audit JSON", "type": "main", "index": 0 }]] },
     "OUTPUT: Drive write audit JSON": { "main": [[{ "node": "AUDIT: insert digest_runs row", "type": "main", "index": 0 }]] },
     "FAIL: Slack stub post": { "main": [[{ "node": "FAIL: Drive write .failed.json", "type": "main", "index": 0 }]] },
@@ -453,27 +536,33 @@
     { "name": "owner:borec-sven" }
   ],
   "_skeleton_notes": {
-    "version": "0.1-skeleton",
+    "version": "0.3-skeleton",
     "created": "2026-05-25",
+    "updated": "2026-05-26",
     "scope": "Spine + key nodes for all 3 stages + dual output paths (pass/fail). NOT production-ready — see TODO_* placeholders and unstubbed nodes below.",
+    "v0.3_changes": [
+      "Cron switched to '30 2 * * *' (container UTC-4) so it fires at 08:30 CEST without setting TZ=Europe/Zagreb on the n8n container. Trigger node renamed to 'Trigger: Cron 08:30 CEST (container UTC-4)'. options.timezone removed (was Europe/Sarajevo) so behaviour is unambiguous.",
+      "Output channel locked to '#whatsapp-beta-feed' (C0ANXU0NKFB) with '[v2 SHADOW]' prefix on every message; channel mode set to 'id'. No new channel required. Prefix dropped at cutover.",
+      "Slack node name renamed to 'OUTPUT: Slack post → #whatsapp-beta-feed [v2 SHADOW]' and connections updated to match (no orphan nodes on import).",
+      "DST caveat: '30 2 * * *' on container UTC-4 fires at 08:30 CEST in summer; when CEST→CET (late Oct), it fires at 07:30 CET. Long-term fix at cutover: set TZ=Europe/Zagreb on the n8n container env and switch cron back to '30 8 * * *'."
+    ],
     "todos_before_first_run": [
       "Replace TODO_OUTPUTS_BENDER_WHATSAPP_DIGEST_FOLDER_ID (2 places) with actual Drive folder ID for outputs/bender whatsapp digest/",
       "Confirm GitHub PAT credential name in n8n (codebase index script will need it)",
       "Confirm Ollama HTTP credential in n8n if currently using credential-based auth (skeleton assumes direct HTTP)",
       "media_b64 / frames_b64 handling: VLM nodes assume base64-encoded media payload from Drive download — add a function node before VLM photo to base64-encode the binary",
-      "scripts/extract_keyframes.sh + scripts/validate_digest.py must exist on n8n host filesystem (or mount into container) before first run",
-      "Slack channel ref uses '#wa-digest-v2-shadow' by name — replace with actual channel ID after confirming bot is invited",
-      "Linear node not yet wired — currently Stage 2 reads from pgvector only (which is populated by external index_linear.py). Linear API calls happen in the indexer, NOT in this workflow."
+      "scripts/extract_keyframes.sh must exist on n8n host filesystem (or mount into container) before first run. scripts/validate_digest.py DELIVERED 2026-05-26 (bender-boop/wa-digest-v2 repo).",
+      "Wire credential 'Postgres - n8n-pgvector (Bender v2 digest)' in n8n UI — password lives at ~/.secrets/n8n-pgvector.env on the n8n host (chmod 600). Non-blocking for indexer scripts (they hit pgvector directly), blocking for workflow Postgres nodes.",
+      "Linear node not yet wired — currently Stage 2 reads from pgvector only (populated by external index_linear.py). Linear API calls happen in the indexer, NOT in this workflow. Linear credential id iSfZn3cLB3gqd9gM is wired into the index workflow (separate file, not this one)."
     ],
     "import_instructions": [
       "1. In n8n: Workflows → Import from File → select this workflow.json",
-      "2. n8n will warn about missing credentials — confirm: Google Drive SA (m4byl5nfbNY3sE95), Zendesk (VYVmkciKDc9RACBS), Postgres (existing), Slack (existing)",
+      "2. n8n will warn about missing credentials — confirm: Google Drive SA (m4byl5nfbNY3sE95), Zendesk (VYVmkciKDc9RACBS), Postgres n8n-pgvector (pending UI wiring), Slack (existing)",
       "3. Save with active=false (already set). Manually execute once before enabling cron.",
       "4. Verify execution path with a tiny messages_<date>.json (1 text + 1 photo) before going live."
     ],
     "next_files_to_drop": [
       "scripts/extract_keyframes.sh — ffmpeg wrapper",
-      "scripts/validate_digest.py — hard gate regex + verification",
       "scripts/index_linear.py — separate workflow that populates linear_index + linear_projects_index nightly",
       "scripts/index_codebase.py + scripts/index_zendesk.py"
     ]
